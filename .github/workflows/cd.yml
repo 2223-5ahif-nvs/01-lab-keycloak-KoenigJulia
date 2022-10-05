@@ -1,0 +1,33 @@
+name: Continuous Deployment 01 Keycloak
+
+on:
+  push:
+    branches:
+      - 'main'
+
+jobs:
+  push:
+    name: Publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install ssh key
+        uses: webfactory/ssh-agent@v0.4.1
+        with:
+          ssh-private-key: ${{ secrets.DEPKEY }}
+      - name: Create .ssh/known_hosts
+        run: ssh-keyscan -H -t rsa -v ${{ secrets.DEPIP }}  >> ~/.ssh/known_hosts
+      - name: Copy required files
+        run: |
+          scp -r docker-compose.yml ${{ secrets.DEPUSER }}@${{ secrets.DEPIP }}:/home/${{ secrets.DEPUSER }}/01
+          scp -r keycloak-postgres.env ${{ secrets.DEPUSER }}@${{ secrets.DEPIP }}:/home/${{ secrets.DEPUSER }}/01
+      - name: Run Docker Container
+        run: |
+          ssh ${{ secrets.DEPUSER }}@${{ secrets.DEPIP }} "
+          cd /home/${{ secrets.DEPUSER }}/01
+          docker compose pull
+          docker compose stop
+          docker compose rm -f
+          docker compose up -d
+          "
